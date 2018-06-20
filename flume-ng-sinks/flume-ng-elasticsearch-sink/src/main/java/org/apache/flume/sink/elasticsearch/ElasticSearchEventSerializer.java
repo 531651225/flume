@@ -18,13 +18,13 @@
  */
 package org.apache.flume.sink.elasticsearch;
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-
 import org.apache.flume.Event;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.conf.ConfigurableComponent;
-import org.elasticsearch.common.io.BytesStream;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+
+import java.io.IOException;
+import java.nio.charset.Charset;
 
 /**
  * Interface for an event serializer which serializes the headers and body of an
@@ -44,5 +44,5 @@ public interface ElasticSearchEventSerializer extends Configurable,
    * @throws IOException
    *           If an error occurs during serialization
    */
-  abstract BytesStream getContentBuilder(Event event) throws IOException;
+  abstract XContentBuilder getContentBuilder(Event event) throws IOException;
 }

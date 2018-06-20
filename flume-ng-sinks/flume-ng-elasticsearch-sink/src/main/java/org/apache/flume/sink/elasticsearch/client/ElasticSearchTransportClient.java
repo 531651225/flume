@@ -19,27 +19,27 @@
 package org.apache.flume.sink.elasticsearch.client;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.io.IOException;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.sink.elasticsearch.ElasticSearchEventSerializer;
+import org.apache.flume.sink.elasticsearch.ElasticSearchIndexRequestBuilderFactory;
 import org.apache.flume.sink.elasticsearch.IndexNameBuilder;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.node.Node;
-import org.elasticsearch.node.NodeBuilder;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
-import org.apache.flume.sink.elasticsearch.ElasticSearchIndexRequestBuilderFactory;
 
 import static org.apache.flume.sink.elasticsearch.ElasticSearchSinkConstants.DEFAULT_PORT;
 
@@ -138,7 +138,11 @@ public class ElasticSearchTransportClient implements ElasticSearchClient {
       String host = hostPort[0].trim();
       int port = hostPort.length == 2 ? Integer.parseInt(hostPort[1].trim())
               : DEFAULT_PORT;
-      serverAddresses[i] = new InetSocketTransportAddress(host, port);
+      try {
+        serverAddresses[i] = new InetSocketTransportAddress(InetAddress.getByName(host), port);
+      } catch (UnknownHostException e) {
+        e.printStackTrace();
+      }
     }
   }
   
@@ -161,7 +165,8 @@ public class ElasticSearchTransportClient implements ElasticSearchClient {
     if (indexRequestBuilderFactory == null) {
       indexRequestBuilder = client
           .prepareIndex(indexNameBuilder.getIndexName(event), indexType)
-          .setSource(serializer.getContentBuilder(event).bytes());
+              .setSource(event.getBody());
+//          .setSource(serializer.getContentBuilder(event).bytes());
     } else {
       indexRequestBuilder = indexRequestBuilderFactory.createIndexRequest(
           client, indexNameBuilder.getIndexPrefix(event), indexType, event);
@@ -193,10 +198,10 @@ public class ElasticSearchTransportClient implements ElasticSearchClient {
   private void openClient(String clusterName) {
     logger.info("Using ElasticSearch hostnames: {} ",
         Arrays.toString(serverAddresses));
-    Settings settings = ImmutableSettings.settingsBuilder()
-        .put("cluster.name", clusterName).build();
+    Settings settings = Settings.builder().put("client.transport.sniff", true)
+            .put("cluster.name", clusterName).build();
 
-    TransportClient transportClient = new TransportClient(settings);
+    TransportClient transportClient = new PreBuiltTransportClient(settings);
     for (InetSocketTransportAddress host : serverAddresses) {
       transportClient.addTransportAddress(host);
     }
@@ -213,12 +218,12 @@ public class ElasticSearchTransportClient implements ElasticSearchClient {
    * in the same JVM
    */
   private void openLocalDiscoveryClient() {
-    logger.info("Using ElasticSearch AutoDiscovery mode");
-    Node node = NodeBuilder.nodeBuilder().client(true).local(true).node();
-    if (client != null) {
-      client.close();
-    }
-    client = node.client();
+//    logger.info("Using ElasticSearch AutoDiscovery mode");
+////    Node node = NodeBuilder.nodeBuilder().client(true).local(true).node();
+//    if (client != null) {
+//      client.close();
+//    }
+//    client = node.client();
   }
 
   @Override
